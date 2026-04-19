@@ -1,0 +1,209 @@
+-- ===================================================================
+-- SCARLET DRESS SHOP DATABASE SETUP SCRIPT
+-- This script creates the database, all necessary tables,
+-- and inserts dummy data in a single, runnable file.
+-- ===================================================================
+
+-- 1. Create database and use it
+CREATE DATABASE IF NOT EXISTS ScarletDressShop;
+USE ScarletDressShop;
+
+-- 2. Drop tables in dependency-safe order for clean re-runs
+-- FIXED: Added TailorServiceRequest and TailoringServices, removed non-existent OrderDetails.
+DROP TABLE IF EXISTS Wishlist, OrderItems, payments, TailorServiceRequest, Orders, Products, Customers, Employees, Suppliers, TailoringServices;
+
+-- ===================================================================
+-- 3. CREATE ALL TABLES
+-- ===================================================================
+
+CREATE TABLE Customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100) UNIQUE,
+    address VARCHAR(200),
+    passwordHash VARCHAR(500),
+    join_date DATETIME DEFAULT CURRENT_TIMESTAMP -- Moved from ALTER to here for better organization
+);
+
+CREATE TABLE Employees (
+    employee_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    role VARCHAR(50),
+    salary DECIMAL(10,2),
+    join_date DATE,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    passwordHash VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE Suppliers (
+    supplier_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100)
+);
+
+CREATE TABLE Products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    category VARCHAR(50),
+    color VARCHAR(30),
+    size VARCHAR(10),
+    price DECIMAL(10,2),
+    stock_quantity INT,
+    supplier_id INT,
+    image_filename VARCHAR(255) NULL, -- Moved from ALTER to here for better organization
+    FOREIGN KEY (supplier_id) REFERENCES Suppliers(supplier_id) ON DELETE SET NULL
+);
+
+CREATE TABLE Orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    employee_id INT,
+    order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    total_amount DECIMAL(10,2),
+    status VARCHAR(50) DEFAULT 'Pending Payment', -- Status is defined here
+    FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE CASCADE,
+    FOREIGN KEY (employee_id) REFERENCES Employees(employee_id) ON DELETE SET NULL
+);
+
+-- ADDED: This table was missing but referenced by TailorServiceRequest
+CREATE TABLE TailoringServices (
+    service_id INT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(100) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    duration VARCHAR(50)
+);
+
+CREATE TABLE Wishlist (
+    wishlist_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    product_id INT NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
+    UNIQUE KEY (customer_id, product_id)
+);
+
+CREATE TABLE OrderItems (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    price_at_time_of_purchase DECIMAL(10, 2),
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE
+);
+
+CREATE TABLE payments (
+    paymentID INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    amount DECIMAL(10,2),
+    payment_date DATETIME,
+    payment_method VARCHAR(50),
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE -- FIXED: Removed invalid character
+);
+
+CREATE TABLE TailorServiceRequest (
+    order_id INT,
+    service_id INT,
+    PRIMARY KEY (order_id, service_id),
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES TailoringServices(service_id) ON DELETE CASCADE -- FIXED: Removed invalid character
+);
+
+
+-- ===================================================================
+-- 4. INSERT DUMMY DATA
+-- ===================================================================
+
+-- Customers (Password for sarah is 'sarah123')
+INSERT INTO Customers (name, email, passwordHash) VALUES
+('Sarah Johnson', 'sarah.j@example.com', 'pbkdf2:sha256:600000$tQ1v5sN2fR3gB4jH$e580e047321e1e9a2636d10e53a539b4b6d475471c26f296a297373f7e53f3e1'),
+('Layla Mohammed', 'layla.m@example.com', 'pbkdf2:sha256:600000$pA2w6tK3gS4hC5iI$1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b');
+
+-- Employees (NOTE: Passwords '1234' and 'pass123' are plain text and not secure. They will only work if your app's login logic does not use hashing for them.)
+INSERT INTO Employees (employee_id, name, role, email, passwordHash) VALUES 
+(1, 'Admin Manager', 'Manager', 'na@gmail.com', '1234'),
+(2, 'John Doe', 'Cashier', 'john.doe@example.com', 'pass123');
+
+-- Suppliers
+INSERT INTO Suppliers (name) VALUES ('Luxury Fabrics Co.'), ('Bridal Essentials Ltd.'), ('Elegant Accessories'), ('Gentleman Wearhouse');
+
+-- Products
+INSERT INTO Products (name, category, color, size, price, stock_quantity, supplier_id, image_filename) VALUES
+('Scarlet Bridal Gown', 'Dress', 'White', 'M', 2500.00, 10, 1, 'scarlet_bridal_gown.jpg'),
+('Lace Evening Dress', 'Dress', 'Wine Red', 'L', 1800.00, 8, 2, 'lace_evening_dress.jpg'),
+('Royal Blue Prom Dress', 'Dress', 'Blue', 'S', 1600.00, 5, 2, 'royal_blue_prom_dress.jpg'),
+('Emerald Satin Gown', 'Dress', 'Green', 'M', 2200.00, 6, 1, 'emerald_satin_gown.jpg'),
+('Champagne Tulle Dress', 'Dress', 'Champagne', 'XS', 1900.00, 7, 1, 'champagne_tulle_dress.jpg'),
+('Silk Hijab', 'Accessories', 'Champagne', 'One Size', 200.00, 50, 3, 'silk_hijab_champagne.jpg'),
+('Crystal Clutch Bag', 'Accessories', 'Silver', 'One Size', 320.00, 15, 3, 'crystal_clutch_silver.jpg'),
+('Pearl Necklace Set', 'Accessories', 'White', 'One Size', 450.00, 20, 3, 'pearl_necklace_set.jpg'),
+('Wedding Veil', 'Accessories', 'Ivory', 'One Size', 400.00, 30, 2, 'wedding_veil_ivory.jpg'),
+('Gold Bridal Crown', 'Accessories', 'Gold', 'One Size', 600.00, 10, 2, 'gold_bridal_crown.jpg'),
+('Tailored Abaya', 'Abaya', 'Black', 'S', 950.00, 12, 1, 'tailored_abaya_black.jpg'),
+('Embroidered Abaya', 'Abaya', 'Navy', 'M', 1050.00, 9, 1, 'embroidered_abaya_navy.jpg'),
+('Groom Sherwani', 'Suit', 'Beige', 'L', 2100.00, 6, 4, 'groom_sherwani_beige.jpg'),
+('Classic Tuxedo', 'Suit', 'Black', 'M', 2300.00, 4, 4, 'classic_tuxedo_black.jpg'),
+('White Dinner Jacket', 'Suit', 'White', 'L', 2400.00, 5, 4, 'white_dinner_jacket.jpg');
+
+-- Example Orders
+INSERT INTO Orders (order_id, customer_id, employee_id, total_amount, status) VALUES
+(1, 1, 2, 2700.00, 'Completed'),
+(2, 2, 2, 950.00, 'Shipped');
+
+-- Example Order Items
+INSERT INTO OrderItems (order_id, product_id, quantity, price_at_time_of_purchase) VALUES
+(1, 1, 1, 2500.00), 
+(1, 6, 1, 200.00), -- Changed from product_id 3 to 6 to match an accessory
+(2, 11, 1, 950.00); -- Changed from product_id 4 to 11 to match an abaya
+
+-- Tailoring Services
+INSERT INTO TailoringServices (type, price, duration) VALUES
+('Standard Hemming', 50.00, '2-3 Days'),
+('Sleeve Adjustment', 45.00, '2 Days'),
+('Waist Take-in', 60.00, '3 Days'),
+('Custom Embellishment', 150.00, '5-7 Days');
+
+-- ===================================================================
+-- 5. VERIFICATION QUERIES (Optional - for checking the data)
+-- ===================================================================
+
+-- List products sorted by total quantity sold
+SELECT 
+    p.name AS product_name,
+    SUM(oi.quantity) AS total_sold
+FROM OrderItems oi
+JOIN Products p ON oi.product_id = p.product_id
+GROUP BY p.name
+ORDER BY total_sold DESC;
+
+-- Show each employee’s total sales amount
+SELECT 
+    e.name AS employee_name,
+    COUNT(o.order_id) AS total_orders_handled,
+    COALESCE(SUM(o.total_amount), 0) AS total_sales
+FROM Employees e
+LEFT JOIN Orders o ON o.employee_id = e.employee_id
+GROUP BY e.name
+ORDER BY total_sales DESC;
+
+-- Customers with most number of orders
+SELECT 
+    c.name AS customer_name,
+    COUNT(o.order_id) AS number_of_orders,
+    SUM(o.total_amount) AS total_spent
+FROM Orders o
+JOIN Customers c ON o.customer_id = c.customer_id
+GROUP BY c.name
+ORDER BY number_of_orders DESC; -- FIXED: Removed invalid character
+
+-- Count new customers registered per month
+SELECT 
+    DATE_FORMAT(join_date, '%Y-%m') AS registration_month,
+    COUNT(customer_id) AS new_customers
+FROM Customers
+GROUP BY registration_month
+ORDER BY registration_month DESC;
+
+SELECT * FROM TailorServiceRequest;
